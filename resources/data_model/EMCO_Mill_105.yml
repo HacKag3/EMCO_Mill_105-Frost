@@ -1,0 +1,186 @@
+name: EMCO_Mill_105         # name of the machine
+machine_category: unknown   # category of the machine
+machine_type: unknown       # type of the machine
+machine_model: unknown      # model of the machine
+description: ''             # description of the machine
+root: 
+  !!FolderNode
+  name: MillingMachine
+  description:
+  children:
+
+  - !!BooleanVariableNode
+    name: Busy
+    initial_value: false
+
+  - !!FolderNode
+    name: Door
+    description: "Automatic Safety Door"
+    children:
+    - !!FolderNode
+      name: Variables
+      description:
+      children:
+      - !!BooleanVariableNode
+        name: IsClosed
+        initial_value: true
+      - !!BooleanVariableNode
+        name: IsMoving
+        initial_value: false
+      - !!NumericalVariableNode
+        name: Time
+        description: "Time required to complete an open/close operation"
+        measure_unit: ""
+        initial_value: 0.0
+    - !!FolderNode
+      name: Methods
+      description:
+      children:
+      - !!AsyncMethodNode
+        name: OpenClose
+        description:
+        parameters:
+        - !!BooleanVariableNode
+          name: wannaClose
+          description: "false to open, true to close"
+        returns:
+        - !!BooleanVariableNode
+          name: Success
+
+  - !!FolderNode
+    name: ToolTurret
+    description: "10-Station Tool turret"
+    children:
+    - !!FolderNode
+      name: Variables
+      description:
+      children:
+      - !!BooleanVariableNode
+        name: IsChanging
+        initial_value: false
+      - !!NumericalVariableNode
+        name: CurrentTool
+        measure_unit: ""
+        initial_value: 0
+      - !!NumericalVariableNode
+        name: TargetTool
+        measure_unit: ""
+        initial_value: 0
+      - !!NumericalVariableNode
+        name: TotalStations
+        measure_unit: ""
+        initial_value: 10
+      - !!NumericalVariableNode
+        name: Time
+        description: "Time needed to switch between two adjacent stations"
+        measure_unit: ""
+        initial_value: 0.0
+    - !!FolderNode
+      name: Methods
+      description:
+      children:
+      - !!AsyncMethodNode
+        name: Change
+        description:
+        parameters: 
+        - !!NumericalVariableNode
+          name: TargetToolID
+        returns:
+        - !!BooleanVariableNode
+          name: Success
+  
+  - !!FolderNode
+    name: DCMotor
+    description: "Spindle DC Motor"
+    children:
+    - !!FolderNode
+      name: Variables
+      description:
+      children:
+      - !!BooleanVariableNode
+        name: Busy
+        initial_value: false
+      - !!NumericalVariableNode
+        name: CurrentRPM
+        measure_unit: ""
+        initial_value: 0.0
+      - !!NumericalVariableNode
+        name: TargetRPM
+        measure_unit: ""
+        initial_value: 0.0
+    - !!FolderNode
+      name: Methods
+      description:
+      children:
+      - !!AsyncMethodNode
+        name: ChangeSpeed
+        description:
+        parameters:
+        - !!NumericalVariableNode
+          name: TargetSpeed
+        returns:
+        - !!BooleanVariableNode
+          name: Reached
+
+  - !!FolderNode
+    name: Axes
+    description: "3-Axis Cartesian Movement System"
+    children:
+    - !!FolderNode
+      name: Variables
+      description:
+      children:
+      - !!BooleanVariableNode
+        name: Busy
+        initial_value: false
+      - !!FolderNode
+        name: X
+        children:
+          - !!NumericalVariableNode
+            name: CurrentPosition
+            measure_unit: ""
+            initial_value: 0.0
+          - !!NumericalVariableNode
+            name: TargetPosition
+            measure_unit: ""
+            initial_value: 0.0
+      - !!FolderNode
+        name: Y
+        children:
+          - !!NumericalVariableNode
+            name: CurrentPosition
+            measure_unit: ""
+            initial_value: 0.0
+          - !!NumericalVariableNode
+            name: TargetPosition
+            measure_unit: ""
+            initial_value: 0.0
+      - !!FolderNode
+        name: Z
+        children:
+          - !!NumericalVariableNode
+            name: CurrentPosition
+            measure_unit: ""
+            initial_value: 0.0
+          - !!NumericalVariableNode
+            name: TargetPosition
+            measure_unit: ""
+            initial_value: 0.0
+    - !!FolderNode
+      name: Methods
+      description:
+      children:
+      - !!AsyncMethodNode
+        name: MoveTo
+        description:
+        parameters:
+        - !!NumericalVariableNode
+          name: X_target
+        - !!NumericalVariableNode
+          name: Y_target
+        - !!NumericalVariableNode
+          name: Z_target
+        returns:
+        - !!BooleanVariableNode
+          name: Reached
+    
