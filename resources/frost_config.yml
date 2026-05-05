@@ -1,0 +1,38 @@
+time_precision: MSECS
+logging_level: INFO
+reactors:
+  EMCO_Door:
+    logging_level: INFO
+    parameters:
+      data_model_path: "resources/data_model/door.yml"
+    reactors:
+      message_filter:
+        logging_level: INFO
+  EMCO_Axes:
+    logging_level: INFO
+    parameters:
+      data_model_path: "resources/data_model/axes.yml"
+    reactors:
+      message_filter:
+        logging_level: INFO
+  EMCO_Spindle:
+    logging_level: INFO
+    parameters:
+      data_model_path: "resources/data_model/spindle.yml"
+    reactors:
+      message_filter:
+        logging_level: INFO
+  EMCO_Tool_Turret:
+    logging_level: INFO
+    parameters:
+      data_model_path: "resources/data_model/tool_turret.yml"
+    reactors:
+      message_filter:
+        logging_level: INFO
+  EMCO_Mill_105:
+    logging_level: INFO
+    parameters:
+      data_model_path: "resources/data_model/EMCO_Mill_105.yml"
+    reactors:
+      message_filter:
+        logging_level: INFO

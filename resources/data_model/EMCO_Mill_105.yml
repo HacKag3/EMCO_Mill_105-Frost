@@ -12,175 +12,91 @@ root:
   - !!BooleanVariableNode
     name: Busy
     initial_value: false
-
-  - !!FolderNode
-    name: Door
-    description: "Automatic Safety Door"
-    children:
-    - !!FolderNode
-      name: Variables
-      description:
-      children:
-      - !!BooleanVariableNode
-        name: IsClosed
-        initial_value: true
-      - !!BooleanVariableNode
-        name: IsMoving
-        initial_value: false
-      - !!NumericalVariableNode
-        name: Time
-        description: "Time required to complete an open/close operation"
-        measure_unit: ""
-        initial_value: 0.0
-    - !!FolderNode
-      name: Methods
-      description:
-      children:
-      - !!AsyncMethodNode
-        name: OpenClose
-        description:
-        parameters:
-        - !!BooleanVariableNode
-          name: wannaClose
-          description: "false to open, true to close"
-        returns:
-        - !!BooleanVariableNode
-          name: Success
-
-  - !!FolderNode
-    name: ToolTurret
-    description: "10-Station Tool turret"
-    children:
-    - !!FolderNode
-      name: Variables
-      description:
-      children:
-      - !!BooleanVariableNode
-        name: IsChanging
-        initial_value: false
-      - !!NumericalVariableNode
-        name: CurrentTool
-        measure_unit: ""
-        initial_value: 0
-      - !!NumericalVariableNode
-        name: TargetTool
-        measure_unit: ""
-        initial_value: 0
-      - !!NumericalVariableNode
-        name: TotalStations
-        measure_unit: ""
-        initial_value: 10
-      - !!NumericalVariableNode
-        name: Time
-        description: "Time needed to switch between two adjacent stations"
-        measure_unit: ""
-        initial_value: 0.0
-    - !!FolderNode
-      name: Methods
-      description:
-      children:
-      - !!AsyncMethodNode
-        name: Change
-        description:
-        parameters: 
-        - !!NumericalVariableNode
-          name: TargetToolID
-        returns:
-        - !!BooleanVariableNode
-          name: Success
   
   - !!FolderNode
-    name: DCMotor
-    description: "Spindle DC Motor"
+    name: Methods
+    description:
     children:
-    - !!FolderNode
-      name: Variables
+    - !!CompositeMethod
+      name: StartTask
       description:
-      children:
+      parameters:
+      - !!NumericalVariableNode
+        name: TargetToolID
+      - !!NumericalVariableNode
+        name: TargetSpeed
+      - !!NumericalVariableNode
+        name: X_target
+      - !!NumericalVariableNode
+        name: Y_target
+      - !!NumericalVariableNode
+        name: Z_target
+      returns:
       - !!BooleanVariableNode
-        name: Busy
-        initial_value: false
-      - !!NumericalVariableNode
-        name: CurrentRPM
-        measure_unit: ""
-        initial_value: 0.0
-      - !!NumericalVariableNode
-        name: TargetRPM
-        measure_unit: ""
-        initial_value: 0.0
-    - !!FolderNode
-      name: Methods
-      description:
-      children:
-      - !!AsyncMethodNode
-        name: ChangeSpeed
-        description:
-        parameters:
-        - !!NumericalVariableNode
-          name: TargetSpeed
-        returns:
-        - !!BooleanVariableNode
-          name: Reached
+        name: Done
 
-  - !!FolderNode
-    name: Axes
-    description: "3-Axis Cartesian Movement System"
-    children:
-    - !!FolderNode
-      name: Variables
-      description:
-      children:
-      - !!BooleanVariableNode
-        name: Busy
-        initial_value: false
-      - !!FolderNode
-        name: X
-        children:
-          - !!NumericalVariableNode
-            name: CurrentPosition
-            measure_unit: ""
-            initial_value: 0.0
-          - !!NumericalVariableNode
-            name: TargetPosition
-            measure_unit: ""
-            initial_value: 0.0
-      - !!FolderNode
-        name: Y
-        children:
-          - !!NumericalVariableNode
-            name: CurrentPosition
-            measure_unit: ""
-            initial_value: 0.0
-          - !!NumericalVariableNode
-            name: TargetPosition
-            measure_unit: ""
-            initial_value: 0.0
-      - !!FolderNode
-        name: Z
-        children:
-          - !!NumericalVariableNode
-            name: CurrentPosition
-            measure_unit: ""
-            initial_value: 0.0
-          - !!NumericalVariableNode
-            name: TargetPosition
-            measure_unit: ""
-            initial_value: 0.0
-    - !!FolderNode
-      name: Methods
-      description:
-      children:
-      - !!AsyncMethodNode
-        name: MoveTo
-        description:
-        parameters:
-        - !!NumericalVariableNode
-          name: X_target
-        - !!NumericalVariableNode
-          name: Y_target
-        - !!NumericalVariableNode
-          name: Z_target
-        returns:
-        - !!BooleanVariableNode
-          name: Reached
+      cfg:
+      - !!WriteVariableNode
+        variable: "/MillingMachine/Busy"
+        value: true
+
+      - !!CallMethodNode
+        method: "/Door/Methods/OpenClose"
+        kwargs:
+          wannaClose: true
+      - !!WaitConditionNode
+        variable: "/Door/Variables/IsClosed"
+        operator: "=="
+        rhs: true
+
+      - !!CallMethodNode
+        method: "/ToolTurret/Methods/Change"
+        kwargs:
+          TargetToolID: 1
+      - !!WaitConditionNode
+        variable: "/ToolTurret/Variables/IsChanging"
+        operator: "=="
+        rhs: false
+
+      - !!CallMethodNode
+        method: "/DCMotor/Methods/ChangeSpeed"
+        kwargs:
+          TargetSpeed: 100
+      - !!WaitConditionNode
+        variable: "/Axes/Variables/TargetRPM"
+        operator: "=="
+        rhs: 100
+
+      - !!CallMethodNode
+        method: "/Axes/Methods/MoveTo"
+        kwargs:
+          X_target: 1
+          Y_target: 1
+          Z_target: 1
+      - !!WaitConditionNode
+        variable: "/Axes/Variables/Busy"
+        operator: "=="
+        rhs: false
+
+      - !!CallMethodNode
+        method: "/DCMotor/Methods/ChangeSpeed"
+        kwargs:
+          TargetSpeed: 0
+      - !!WaitConditionNode
+        variable: "/Axes/Variables/Busy"
+        operator: "=="
+        rhs: false
+
+      - !!CallMethodNode
+        method: "/Door/Methods/OpenClose"
+        kwargs:
+          wannaClose: false
+      - !!WaitConditionNode
+        variable: "/Door/Variables/IsClosed"
+        operator: "=="
+        rhs: true
+
+      - !!WriteVariableNode
+        variable: "/MillingMachine/Busy"
+        value: false
     

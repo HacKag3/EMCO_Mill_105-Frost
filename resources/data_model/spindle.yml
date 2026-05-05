@@ -1,0 +1,39 @@
+name: EMCO_Spindle                # name of the machine
+machine_category: "unknown"         # category of the machine
+machine_type: "unknown"             # type of the machine
+machine_model: "unknown"            # model of the machine
+description: "Spindle DC Motor" 
+root:
+  !!FolderNode
+  name: DCMotor
+  description: ""
+  children:
+  - !!FolderNode
+    name: Variables
+    description:
+    children:
+    - !!BooleanVariableNode
+      name: Busy
+      initial_value: false
+    - !!NumericalVariableNode
+      name: CurrentRPM
+      measure_unit: ""
+      initial_value: 0.0
+    - !!NumericalVariableNode
+      name: TargetRPM
+      measure_unit: ""
+      initial_value: 0.0
+  - !!FolderNode
+    name: Methods
+    description:
+    children:
+    - !!AsyncMethodNode
+      name: ChangeSpeed
+      description:
+      parameters:
+      - !!NumericalVariableNode
+        name: TargetSpeed
+      returns:
+      - !!BooleanVariableNode
+        name: Reached
+    
