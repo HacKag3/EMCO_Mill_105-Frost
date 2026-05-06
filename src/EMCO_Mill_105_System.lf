@@ -1,4 +1,4 @@
-target Python{};
+target Python
 
 import FrostMachine from "../frost/src/lib/FrostMachine.lf"
 import FrostBus from "../frost/src/lib/FrostBus.lf"
