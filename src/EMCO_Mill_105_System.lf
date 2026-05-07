@@ -8,10 +8,10 @@ preamble{=
 =}
 
 reactor Door extends FrostMachine {
-    state isClosed     = {= self.data_model.get_node("/Door/Variables/IsClosed") =}
-    state isMoving     = {= self.data_model.get_node("/Door/Variables/IsMoving") =}
-    state movingTime   = {= self.data_model.get_node("/Door/Variables/Time") =}
-    state m_openClose  = {= self.data_model.get_node("/Door/Methods/OpenClose") =}
+    state isClosed
+    state isMoving
+    state movingTime
+    state m_openClose
 
     method openClose_door(wannaClose) {=
         if self.isMoving.value:
@@ -35,17 +35,21 @@ reactor Door extends FrostMachine {
     =}
 
     reaction(startup) {=
+        isClosed     = self.data_model.get_node("/Door/Variables/IsClosed")
+        isMoving     = self.data_model.get_node("/Door/Variables/IsMoving")
+        movingTime   = self.data_model.get_node("/Door/Variables/Time")
+        m_openClose  = self.data_model.get_node("/Door/Methods/OpenClose")
         self.m_openClose.callback = self.openClose_door
     =}
 }
 
 reactor ToolTurret extends FrostMachine {
-    state isChanging     = {= self.data_model.get_node("/ToolTurret/Variables/IsChanging") =}
-    state currentTool    = {= self.data_model.get_node("/ToolTurret/Variables/CurrentTool") =}
-    state targetTool     = {= self.data_model.get_node("/ToolTurret/Variables/TargetTool") =}
-    state totalStations  = {= self.data_model.get_node("/ToolTurret/Variables/TotalStations") =}
-    state changeTime     = {= self.data_model.get_node("/ToolTurret/Variables/Time") =}
-    state m_change       = {= self.data_model.get_node("/ToolTurret/Methods/Change") =}
+    state isChanging
+    state currentTool
+    state targetTool
+    state totalStations
+    state changeTime
+    state m_change
 
     method change_tool(targetTool) {=
         if self.isChanging.value:
@@ -71,20 +75,26 @@ reactor ToolTurret extends FrostMachine {
     =}
 
     reaction(startup) {=
+        isChanging     = self.data_model.get_node("/ToolTurret/Variables/IsChanging")
+        currentTool    = self.data_model.get_node("/ToolTurret/Variables/CurrentTool")
+        targetTool     = self.data_model.get_node("/ToolTurret/Variables/TargetTool")
+        totalStations  = self.data_model.get_node("/ToolTurret/Variables/TotalStations")
+        changeTime     = self.data_model.get_node("/ToolTurret/Variables/Time")
+        m_change       = self.data_model.get_node("/ToolTurret/Methods/Change")
         self.m_change.callback = self.change_tool
     =}
 }
 
 reactor Spindle extends FrostMachine {
-    state busy          = {= self.data_model.get_node("/DCMotor/Variables/Busy") =}
-    state currentRPM    = {= self.data_model.get_node("/DCMotor/Variables/CurrentRPM") =}
-    state targetRPM     = {= self.data_model.get_node("/DCMotor/Variables/TargetRPM") =}
-    state m_changeSpeed = {= self.data_model.get_node("/DCMotor/Methods/ChangeSpeed") =}
+    state busy
+    state currentRPM
+    state targetRPM
+    state m_changeSpeed
 
     method changeSpeed_dcm(targetSpeed) {=
         self.logger.debug(f"Changing speed...")
         self.targetRPM.value = targetSpeed
-        step = (self.currentRPM.value - self.targetRPM.value) < 0 ? -1 : 1
+        step = -1 if (self.currentRPM.value - self.targetRPM.value) < 0 else 1
         while self.currentRPM.value != self.targetRPM.value:
             if self.currentRPM.value > 0:
                 if not self.busy.value:
@@ -98,19 +108,23 @@ reactor Spindle extends FrostMachine {
     =}
 
     reaction(startup) {=
+        busy          = self.data_model.get_node("/DCMotor/Variables/Busy")
+        currentRPM    = self.data_model.get_node("/DCMotor/Variables/CurrentRPM")
+        targetRPM     = self.data_model.get_node("/DCMotor/Variables/TargetRPM")
+        m_changeSpeed = self.data_model.get_node("/DCMotor/Methods/ChangeSpeed")
         self.m_start.callback = self.changeSpeed_dcm
     =}
 }
 
 reactor AxesMotor extends FrostMachine {
-    state busy         = {= self.data_model.get_node("/Axes/Variables/Busy") =}
-    state XcurrentPos  = {= self.data_model.get_node("/Axes/Variables/X/CurrentPosition") =}
-    state XtargetPos   = {= self.data_model.get_node("/Axes/Variables/X/TargetPosition") =}
-    state YcurrentPos  = {= self.data_model.get_node("/Axes/Variables/Y/CurrentPosition") =}
-    state YtargetPos   = {= self.data_model.get_node("/Axes/Variables/Y/TargetPosition") =}
-    state ZcurrentPos  = {= self.data_model.get_node("/Axes/Variables/Z/CurrentPosition") =}
-    state ZtargetPos   = {= self.data_model.get_node("/Axes/Variables/Z/TargetPosition") =}
-    state m_moveTo     = {= self.data_model.get_node("/Axes/Methods/MoveTo") =}
+    state busy
+    state XcurrentPos
+    state XtargetPos
+    state YcurrentPos
+    state YtargetPos
+    state ZcurrentPos
+    state ZtargetPos
+    state m_moveTo
 
     method moveTo_axes(x, y, z) {=
         self.logger.debug(f"Moving to ({x};{y};{z}) ...")
@@ -119,15 +133,15 @@ reactor AxesMotor extends FrostMachine {
         self.YtargetPos.value = y
         self.ZtargetPos.value = z
         # X moving
-        step = (self.XcurrentPos.value - self.XtargetPos.value) < 0 ? -1 : 1
+        step = -1 if (self.XcurrentPos.value - self.XtargetPos.value) < 0 else 1
         while self.XcurrentPos.value != self.XtargetPos.value:
             self.XcurrentPos.value += step
         # Z moving
-        step = (self.ZcurrentPos.value - self.ZtargetPos.value) < 0 ? -1 : 1
+        step = -1 if (self.ZcurrentPos.value - self.ZtargetPos.value) < 0 else 1
         while self.ZcurrentPos.value != self.ZtargetPos.value:
             self.ZcurrentPos.value += step
         # Y moving
-        step = (self.YcurrentPos.value - self.YtargetPos.value) < 0 ? -1 : 1
+        step = -1 if (self.YcurrentPos.value - self.YtargetPos.value) < 0 else 1
         while self.YcurrentPos.value != self.YtargetPos.value:
             self.YcurrentPos.value += step
         self.logger.debug(f"Position reached.")
@@ -136,20 +150,30 @@ reactor AxesMotor extends FrostMachine {
     =}
 
     reaction(startup) {=
+        busy         = self.data_model.get_node("/Axes/Variables/Busy")
+        XcurrentPos  = self.data_model.get_node("/Axes/Variables/X/CurrentPosition")
+        XtargetPos   = self.data_model.get_node("/Axes/Variables/X/TargetPosition")
+        YcurrentPos  = self.data_model.get_node("/Axes/Variables/Y/CurrentPosition")
+        YtargetPos   = self.data_model.get_node("/Axes/Variables/Y/TargetPosition")
+        ZcurrentPos  = self.data_model.get_node("/Axes/Variables/Z/CurrentPosition")
+        ZtargetPos   = self.data_model.get_node("/Axes/Variables/Z/TargetPosition")
+        m_moveTo     = self.data_model.get_node("/Axes/Methods/MoveTo")
         self.m_moveTo.callback = self.moveTo_axes
     =}
 }
 
 reactor EMCO_Mill_105 extends FrostMachine{
     # MillingMachine
-    state busy          = {= self.data_model.get_node("MillingMachine/Busy") =}
-    state m_startTask     = {= self.data_model.get_node("MillingMachine/StartTask") =}
+    state busy
+    state m_startTask
 
     method startTask(tool, speed, x, y, z) {=
         return True
     =}
     
     reaction(startup) {=
+        busy          = self.data_model.get_node("MillingMachine/Busy")
+        m_startTask     = self.data_model.get_node("MillingMachine/StartTask")
         self.m_startTask.callback = startTask
     =}
 }
