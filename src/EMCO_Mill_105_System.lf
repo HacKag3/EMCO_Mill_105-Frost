@@ -9,13 +9,13 @@ preamble{=
 
 reactor EMCO_Mill_105 extends FrostMachine{
     # MillingMachine
-    state mill_busy         = {= self.data_model.get_node("MillingMachine/Busy") =}
+    state mill_busy
 
     # Door
-    state door_isClosed     = {= self.data_model.get_node("MillingMachine/Door/Variables/IsClosed") =}
-    state door_isMoving     = {= self.data_model.get_node("MillingMachine/Door/Variables/IsMoving") =}
-    state door_time         = {= self.data_model.get_node("MillingMachine/Door/Variables/Time") =}
-    state door_m_openClose  = {= self.data_model.get_node("MillingMachine/Door/Methods/OpenClose") =}
+    state door_isClosed
+    state door_isMoving
+    state door_time
+    state door_m_openClose
     method openClose_door(wannaClose) {=
         if self.door_isMoving.value:
             return False
@@ -38,12 +38,12 @@ reactor EMCO_Mill_105 extends FrostMachine{
     =}
 
     # ToolTurret
-    state tt_isChanging     = {= self.data_model.get_node("MillingMachine/ToolTurret/Variables/IsChanging") =}
-    state tt_currentTool    = {= self.data_model.get_node("MillingMachine/ToolTurret/Variables/CurrentTool") =}
-    state tt_targetTool    = {= self.data_model.get_node("MillingMachine/ToolTurret/Variables/TargetTool") =}
-    state tt_totalStations  = {= self.data_model.get_node("MillingMachine/ToolTurret/Variables/TotalStations") =}
-    state tt_time           = {= self.data_model.get_node("MillingMachine/ToolTurret/Variables/Time") =}
-    state tt_m_change       = {= self.data_model.get_node("MillingMachine/ToolTurret/Methods/Change") =}
+    state tt_isChanging
+    state tt_currentTool
+    state tt_targetTool
+    state tt_totalStations
+    state tt_time
+    state tt_m_change
     method change_tool(targetTool) {=
         if self.tt_isChanging.value:
             return False
@@ -68,14 +68,14 @@ reactor EMCO_Mill_105 extends FrostMachine{
     =}
 
     # DCMotor
-    state dcm_busy          = {= self.data_model.get_node("MillingMachine/DCMotor/Variables/Busy") =}
-    state dcm_currentRPM    = {= self.data_model.get_node("MillingMachine/DCMotor/Variables/CurrentRPM") =}
-    state dcm_targetRPM     = {= self.data_model.get_node("MillingMachine/DCMotor/Variables/TargetRPM") =}
-    state dcm_m_changeSpeed = {= self.data_model.get_node("MillingMachine/DCMotor/Methods/ChangeSpeed") =}
+    state dcm_busy
+    state dcm_currentRPM
+    state dcm_targetRPM
+    state dcm_m_changeSpeed
     method changeSpeed_dcm(targetSpeed) {=
         self.logger.debug(f"Changing speed...")
         self.dcm_targetRPM.value = targetSpeed
-        step = (self.dcm_currentRPM.value - self.dcm_targetRPM.value) < 0 ? -1 : 1
+        step = -1 if (self.dcm_currentRPM.value - self.dcm_targetRPM.value) < 0 else 1
         while self.dcm_currentRPM.value != self.dcm_targetRPM.value:
             if self.dcm_currentRPM.value > 0:
                 if not self.dcm_busy.value:
@@ -88,14 +88,14 @@ reactor EMCO_Mill_105 extends FrostMachine{
     =}
 
     # Axes
-    state axes_busy         = {= self.data_model.get_node("MillingMachine/Axes/Variables/Busy") =}
-    state axes_XcurrentPos  = {= self.data_model.get_node("MillingMachine/Axes/Variables/X/CurrentPosition") =}
-    state axes_XtargetPos   = {= self.data_model.get_node("MillingMachine/Axes/Variables/X/TargetPosition") =}
-    state axes_YcurrentPos  = {= self.data_model.get_node("MillingMachine/Axes/Variables/Y/CurrentPosition") =}
-    state axes_YtargetPos   = {= self.data_model.get_node("MillingMachine/Axes/Variables/Y/TargetPosition") =}
-    state axes_ZcurrentPos  = {= self.data_model.get_node("MillingMachine/Axes/Variables/Z/CurrentPosition") =}
-    state axes_ZtargetPos   = {= self.data_model.get_node("MillingMachine/Axes/Variables/Z/TargetPosition") =}
-    state axes_m_moveTo     = {= self.data_model.get_node("MillingMachine/Axes/Methods/MoveTo") =}
+    state axes_busy
+    state axes_XcurrentPos
+    state axes_XtargetPos
+    state axes_YcurrentPos
+    state axes_YtargetPos
+    state axes_ZcurrentPos
+    state axes_ZtargetPos
+    state axes_m_moveTo
     method moveTo_axes(x, y, z) {=
         self.logger.debug(f"Moving to ({x};{y};{z}) ...")
         self.axes_busy.value = True
@@ -103,15 +103,15 @@ reactor EMCO_Mill_105 extends FrostMachine{
         self.axes_YtargetPos.value = y
         self.axes_ZtargetPos.value = z
         # X moving
-        step = (self.axes_XcurrentPos.value - self.axes_XtargetPos.value) < 0 ? -1 : 1
+        step = -1 if (self.axes_XcurrentPos.value - self.axes_XtargetPos.value) < 0 else 1
         while self.axes_XcurrentPos.value != self.axes_XtargetPos.value:
             self.axes_XcurrentPos.value += step
         # Z moving
-        step = (self.axes_ZcurrentPos.value - self.axes_ZtargetPos.value) < 0 ? -1 : 1
+        step = -1 if (self.axes_ZcurrentPos.value - self.axes_ZtargetPos.value) < 0 else 1
         while self.axes_ZcurrentPos.value != self.axes_ZtargetPos.value:
             self.axes_ZcurrentPos.value += step
         # Y moving
-        step = (self.axes_YcurrentPos.value - self.axes_YtargetPos.value) < 0 ? -1 : 1
+        step = -1 if (self.axes_YcurrentPos.value - self.axes_YtargetPos.value) < 0 else 1
         while self.axes_YcurrentPos.value != self.axes_YtargetPos.value:
             self.axes_YcurrentPos.value += step
         self.logger.debug(f"Position reached.")
@@ -120,10 +120,37 @@ reactor EMCO_Mill_105 extends FrostMachine{
     =}
 
     reaction(startup) {=
-        self.door_m_openClose.callback = self.openClose_door
-        self.tt_m_change.callback = self.change_tool
-        self.dcm_m_start.callback = self.changeSpeed_dcm
-        self.axes_m_moveTo.callback = self.moveTo_axes
+        self.mill_busy                  = self.data_model.get_node("/MillingMachine/Busy")
+
+        self.door_isClosed              = self.data_model.get_node("/MillingMachine/Door/Variables/IsClosed")
+        self.door_isMoving              = self.data_model.get_node("/MillingMachine/Door/Variables/IsMoving")
+        self.door_time                  = self.data_model.get_node("/MillingMachine/Door/Variables/Time")
+        self.door_m_openClose           = self.data_model.get_node("/MillingMachine/Door/Methods/OpenClose")
+        self.door_m_openClose.callback  = self.openClose_door
+
+        self.tt_isChanging              = self.data_model.get_node("/MillingMachine/ToolTurret/Variables/IsChanging")
+        self.tt_currentTool             = self.data_model.get_node("/MillingMachine/ToolTurret/Variables/CurrentTool")
+        self.tt_targetTool              = self.data_model.get_node("/MillingMachine/ToolTurret/Variables/TargetTool")
+        self.tt_totalStations           = self.data_model.get_node("/MillingMachine/ToolTurret/Variables/TotalStations")
+        self.tt_time                    = self.data_model.get_node("/MillingMachine/ToolTurret/Variables/Time")
+        self.tt_m_change                = self.data_model.get_node("/MillingMachine/ToolTurret/Methods/Change")
+        self.tt_m_change.callback       = self.change_tool
+
+        self.dcm_busy                   = self.data_model.get_node("/MillingMachine/DCMotor/Variables/Busy")
+        self.dcm_currentRPM             = self.data_model.get_node("/MillingMachine/DCMotor/Variables/CurrentRPM")
+        self.dcm_targetRPM              = self.data_model.get_node("/MillingMachine/DCMotor/Variables/TargetRPM")
+        self.dcm_m_changeSpeed          = self.data_model.get_node("/MillingMachine/DCMotor/Methods/ChangeSpeed")
+        self.dcm_m_start.callback       = self.changeSpeed_dcm
+        
+        self.axes_busy                  = self.data_model.get_node("/MillingMachine/Axes/Variables/Busy")
+        self.axes_XcurrentPos           = self.data_model.get_node("/MillingMachine/Axes/Variables/X/CurrentPosition")
+        self.axes_XtargetPos            = self.data_model.get_node("/MillingMachine/Axes/Variables/X/TargetPosition")
+        self.axes_YcurrentPos           = self.data_model.get_node("/MillingMachine/Axes/Variables/Y/CurrentPosition")
+        self.axes_YtargetPos            = self.data_model.get_node("/MillingMachine/Axes/Variables/Y/TargetPosition")
+        self.axes_ZcurrentPos           = self.data_model.get_node("/MillingMachine/Axes/Variables/Z/CurrentPosition")
+        self.axes_ZtargetPos            = self.data_model.get_node("/MillingMachine/Axes/Variables/Z/TargetPosition")
+        self.axes_m_moveTo              = self.data_model.get_node("/MillingMachine/Axes/Methods/MoveTo")
+        self.axes_m_moveTo.callback     = self.moveTo_axes
     =}
 }
 

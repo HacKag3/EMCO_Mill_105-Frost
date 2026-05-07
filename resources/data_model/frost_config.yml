@@ -1,0 +1,10 @@
+time_precision: MSECS
+logging_level: INFO
+reactors:
+  EMCO_Mill_105:
+    logging_level: INFO
+    parameters:
+      data_model_path: "resources/data_model/EMCO_Mill_105.yml"
+    reactors:
+      message_filter:
+        logging_level: INFO
