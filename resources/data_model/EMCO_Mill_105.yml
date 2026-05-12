@@ -25,12 +25,12 @@ root:
         name: IsClosed
         initial_value: true
       - !!BooleanVariableNode
-        name: IsMoving
+        name: Busy
         initial_value: false
       - !!NumericalVariableNode
         name: Time
         description: "Time required to complete an open/close operation"
-        measure_unit: ""
+        measure_unit: "NoneMeasureUnits.NONE"
         initial_value: 0.0
     - !!FolderNode
       name: Methods
@@ -56,24 +56,24 @@ root:
       description:
       children:
       - !!BooleanVariableNode
-        name: IsChanging
+        name: Busy
         initial_value: false
       - !!NumericalVariableNode
         name: CurrentTool
-        measure_unit: ""
+        measure_unit: "NoneMeasureUnits.NONE"
         initial_value: 0
       - !!NumericalVariableNode
         name: TargetTool
-        measure_unit: ""
+        measure_unit: "NoneMeasureUnits.NONE"
         initial_value: 0
       - !!NumericalVariableNode
         name: TotalStations
-        measure_unit: ""
+        measure_unit: "NoneMeasureUnits.NONE"
         initial_value: 10
       - !!NumericalVariableNode
         name: Time
         description: "Time needed to switch between two adjacent stations"
-        measure_unit: ""
+        measure_unit: "NoneMeasureUnits.NONE"
         initial_value: 0.0
     - !!FolderNode
       name: Methods
@@ -84,7 +84,8 @@ root:
         description:
         parameters: 
         - !!NumericalVariableNode
-          name: TargetToolID
+          name: targetTool
+          measure_unit: "NoneMeasureUnits.NONE"
         returns:
         - !!BooleanVariableNode
           name: Success
@@ -102,11 +103,11 @@ root:
         initial_value: false
       - !!NumericalVariableNode
         name: CurrentRPM
-        measure_unit: ""
+        measure_unit: "NoneMeasureUnits.NONE"
         initial_value: 0.0
       - !!NumericalVariableNode
         name: TargetRPM
-        measure_unit: ""
+        measure_unit: "NoneMeasureUnits.NONE"
         initial_value: 0.0
     - !!FolderNode
       name: Methods
@@ -117,7 +118,7 @@ root:
         description:
         parameters:
         - !!NumericalVariableNode
-          name: TargetSpeed
+          name: targetSpeed
         returns:
         - !!BooleanVariableNode
           name: Reached
@@ -138,33 +139,33 @@ root:
         children:
           - !!NumericalVariableNode
             name: CurrentPosition
-            measure_unit: ""
+            measure_unit: "NoneMeasureUnits.NONE"
             initial_value: 0.0
           - !!NumericalVariableNode
             name: TargetPosition
-            measure_unit: ""
+            measure_unit: "NoneMeasureUnits.NONE"
             initial_value: 0.0
       - !!FolderNode
         name: Y
         children:
           - !!NumericalVariableNode
             name: CurrentPosition
-            measure_unit: ""
+            measure_unit: "NoneMeasureUnits.NONE"
             initial_value: 0.0
           - !!NumericalVariableNode
             name: TargetPosition
-            measure_unit: ""
+            measure_unit: "NoneMeasureUnits.NONE"
             initial_value: 0.0
       - !!FolderNode
         name: Z
         children:
           - !!NumericalVariableNode
             name: CurrentPosition
-            measure_unit: ""
+            measure_unit: "NoneMeasureUnits.NONE"
             initial_value: 0.0
           - !!NumericalVariableNode
             name: TargetPosition
-            measure_unit: ""
+            measure_unit: "NoneMeasureUnits.NONE"
             initial_value: 0.0
     - !!FolderNode
       name: Methods
@@ -175,12 +176,108 @@ root:
         description:
         parameters:
         - !!NumericalVariableNode
-          name: X_target
+          name: x
+          measure_unit: "NoneMeasureUnits.NONE"
         - !!NumericalVariableNode
-          name: Y_target
+          name: y
+          measure_unit: "NoneMeasureUnits.NONE"
         - !!NumericalVariableNode
-          name: Z_target
+          name: z
+          measure_unit: "NoneMeasureUnits.NONE"
         returns:
         - !!BooleanVariableNode
           name: Reached
+
+
+  - !!FolderNode
+    name: CFG_Method
+    children:
+
+    - !!CompositeMethodNode
+      name: OpenDoor
+      cfg:
+      - !!CallMethodNode
+        method: "/MillingMachine/Door/Methods/OpenClose"
+        kwargs:
+          wannaClose: false
+      - !!WaitConditionNode
+        variable: "/MillingMachine/Door/Variables/Busy"
+        operator: "=="
+        rhs: false
+
+    - !!CompositeMethodNode
+      name: CloseDoor
+      cfg:
+      - !!CallMethodNode
+        method: "/MillingMachine/Door/Methods/OpenClose"
+        kwargs:
+          wannaClose: true
+      - !!WaitConditionNode
+        variable: "/MillingMachine/Door/Variables/Busy"
+        operator: "=="
+        rhs: false
+
+    - !!CompositeMethodNode
+      name: ChangeTool1
+      cfg:
+      - !!CallMethodNode
+        method: "/MillingMachine/ToolTurret/Methods/Change"
+        kwargs:
+          targetTool: 1
+      - !!WaitConditionNode
+        variable: "/MillingMachine/ToolTurret/Variables/Busy"
+        operator: "=="
+        rhs: false
+
+    - !!CompositeMethodNode
+      name: GoToSpeed0
+      cfg:
+      - !!CallMethodNode
+        method: "/MillingMachine/DCMotor/Methods/ChangeSpeed"
+        kwargs:
+          targetSpeed: 0
+      - !!WaitConditionNode
+        variable: "/MillingMachine/DCMotor/Variables/Busy"
+        operator: "=="
+        rhs: false
+
+    - !!CompositeMethodNode
+      name: GoToSpeed500
+      cfg:
+      - !!CallMethodNode
+        method: "/MillingMachine/DCMotor/Methods/ChangeSpeed"
+        kwargs:
+          targetSpeed: 500
+      - !!WaitConditionNode
+        variable: "/MillingMachine/DCMotor/Variables/Busy"
+        operator: "=="
+        rhs: false
+
+    - !!CompositeMethodNode
+      name: MoveToXYZ
+      cfg:
+      - !!CallMethodNode
+        method: "/MillingMachine/Axes/Methods/MoveTo"
+        kwargs:
+          x: 50
+          y: 5
+          z: 20
+      - !!WaitConditionNode
+        variable: "/MillingMachine/Axes/Variables/Busy"
+        operator: "=="
+        rhs: false
+
+    - !!CompositeMethodNode
+      name: MoveToXYZ
+      cfg:
+      - !!CallMethodNode
+        method: "/MillingMachine/Axes/Methods/MoveTo"
+        kwargs:
+          x: 0
+          y: 0
+          z: 0
+      - !!WaitConditionNode
+        variable: "/MillingMachine/Axes/Variables/Busy"
+        operator: "=="
+        rhs: false
     

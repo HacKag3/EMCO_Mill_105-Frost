@@ -1,0 +1,73 @@
+{
+    "jobs": [
+        {
+            "id": "0",
+            "name": "J_0",
+            "tasks": [
+                {
+                    "id": "0",
+                    "name": "CloseDoor",
+                    "processing_time": 2
+                },
+                {
+                    "id": "1",
+                    "name": "ChangeTool1",
+                    "processing_time": 2,
+                    "dependencies": [
+                        "0"
+                    ]
+                },
+                {
+                    "id": "2",
+                    "name": "GoToSpeed500",
+                    "processing_time": 8,
+                    "dependencies": [
+                        "0","1"
+                    ]
+                },
+                {
+                    "id": "3",
+                    "name": "MoveToXYZ",
+                    "processing_time": 8,
+                    "dependencies": [
+                        "0","1","2"
+                    ]
+                },
+                {
+                    "id": "4",
+                    "name": "MoveToXYZ0",
+                    "processing_time": 8,
+                    "dependencies": [
+                        "0","1","2","3"
+                    ]
+                },
+                {
+                    "id": "5",
+                    "name": "GoToSpeed0",
+                    "processing_time": 8,
+                    "dependencies": [
+                        "0","1","2","3","4"
+                    ]
+                },
+                {
+                    "id": "6",
+                    "name": "OpenDoor",
+                    "processing_time": 2,
+                    "dependencies": [
+                        "0","1","2","3","5"
+                    ]
+                }
+            ],
+            "priority": 3,
+            "due_date": 1405
+        }
+    ],
+    "machines": [
+        {
+            "id": "0",
+            "name": "milling_machine"
+        }
+    ],
+    "travel_times": {
+    }
+}

@@ -1,0 +1,17 @@
+name: "Scheduler" 
+root:
+  !!FolderNode
+  name: "Scheduler"
+  description: ""
+  children:
+    - !!CompositeMethodNode
+      name: "StartTask"
+      parameters: 
+        - !!StringVariableNode
+          name: "remote_machine"
+        - !!StringVariableNode
+          name: "remote_method"
+      cfg:
+        - !!CallRemoteMethodNode
+          method: "${remote_method}"
+          remote_id: "${remote_machine}"

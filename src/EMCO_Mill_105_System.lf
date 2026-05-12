@@ -1,18 +1,51 @@
-target Python
+target Python{
+    files: [
+        "frost/src/python_lib/frost.py",
+        "frost/src/python_lib/l_formatter.py",
+        "frost/src/python_lib/time_utils.py",
+    ],
+}
 
 import FrostMachine from "../frost/src/lib/FrostMachine.lf"
 import FrostBus from "../frost/src/lib/FrostBus.lf"
+import FrostScheduler from "../frost/src/lib/scheduler/FrostScheduler.lf"
 
 preamble{=
-    import time
+    from frost import *
 =}
+
+reactor Scheduler extends FrostScheduler{
+    // @label run_tasks
+    reaction(start_tasks) {=
+        self.logger.debug(f"Starting tasks: {start_tasks.value}")
+
+        for task, machine in start_tasks.value:
+            machine = machine.name
+            task_name = task.task.name
+            self.logger.info(f"Starting task {task_name} on machine {machine}")
+            task.start_time = self._get_current_logical_time_sec()
+            self._executor.task_started(task)
+
+            msg = self.create_method_request(self.data_model.name, f"/Scheduler/StartTask", args=[machine, f"/MillingMachine/CFG_Method/{task_name}"], kwargs={})
+            self._active_tasks[msg.correlation_id] = task
+            self.protocol_mng.handle_request(msg)
+
+    =}
+    
+    reaction(shutdown) {=
+        tasks = [task for job in self.scheduling_instance.jobs for task in job.tasks]
+        assert all(
+            task.status == TaskStatus.COMPLETED for task in tasks
+        ), "Not all tasks were completed"
+    =}
+}
 
 reactor EMCO_Mill_105 extends FrostMachine{
     # MillingMachine
     state mill_busy
-
+    
     # Door
-    state door_isClosed
+    state door_busy
     state door_isMoving
     state door_time
     state door_m_openClose
@@ -22,48 +55,50 @@ reactor EMCO_Mill_105 extends FrostMachine{
             
         self.door_isMoving.value = True
         if wannaClose:
-            self.logger.debug(f"Closing door...")
-            if not self.door_isClosed.value:
-                time.sleep(self.door_time.value)
-                self.door_isClosed.value = True
-            self.logger.debug(f"Door closed.")
+            self.logger.info(f"Closing door...")
+            if not self.door_busy.value:
+                self.door_busy.value = True
+            self.logger.info(f"Door closed.")
         else:
-            self.logger.debug(f"Opening door...")
-            if self.door_isClosed.value:
-                time.sleep(self.door_time.value)
-                self.door_isClosed.value = False
-            self.logger.debug(f"Door opened.")
+            self.logger.info(f"Opening door...")
+            if self.door_busy.value:
+                self.door_busy.value = False
+            self.logger.info(f"Door opened.")
         self.door_isMoving.value = False
         return True
     =}
 
     # ToolTurret
-    state tt_isChanging
+    state tt_busy
     state tt_currentTool
     state tt_targetTool
     state tt_totalStations
     state tt_time
     state tt_m_change
     method change_tool(targetTool) {=
-        if self.tt_isChanging.value:
+        if self.tt_busy.value:
             return False
 
-        def directionStep(a, b, N):
-            clkWise = (b - a) % N
-            counter_clkWise = (a - b) % N
+        def directionStep(curr, targ, N):
+            clkWise = (targ - curr) % N
+            counter_clkWise = (curr - targ) % N
             if clkWise <= counter_clkWise:
                 return 1
             return -1
 
-        self.tt_isChanging.value = True
-        self.logger.debug(f"Changing tool...")
+        self.tt_busy.value = True
+        self.logger.info(f"Changing tool...")
         self.tt_targetTool.value = targetTool
-        step = directionStep(self.tt_targetTool.value, self.tt_currentTool.value)
+        step = directionStep(self.tt_currentTool.value, self.tt_targetTool.value, self.tt_totalStations.value)
         while self.tt_currentTool.value != self.tt_targetTool.value:
-            time.sleep(self.tt_time.value)
-            self.tt_currentTool.value += step
-        self.logger.debug(f"Tool changed.")
-        self.tt_isChanging.value = False
+            next_tool = self.tt_currentTool.value + step
+            if next_tool < 1:
+                next_tool = self.tt_totalStations.value
+            elif next_tool > self.tt_totalStations.value:
+                next_tool = 1
+            self.tt_currentTool.value = next_tool
+        self.logger.info(f"Tool changed.")
+        self.tt_busy.value = False
         return True
     =}
 
@@ -73,17 +108,35 @@ reactor EMCO_Mill_105 extends FrostMachine{
     state dcm_targetRPM
     state dcm_m_changeSpeed
     method changeSpeed_dcm(targetSpeed) {=
-        self.logger.debug(f"Changing speed...")
-        self.dcm_targetRPM.value = targetSpeed
-        step = -1 if (self.dcm_currentRPM.value - self.dcm_targetRPM.value) < 0 else 1
-        while self.dcm_currentRPM.value != self.dcm_targetRPM.value:
-            if self.dcm_currentRPM.value > 0:
-                if not self.dcm_busy.value:
-                    self.dcm_busy.value = True
-            else:
-                self.dcm_busy.value = False
-            self.dcm_currentRPM.value += step
-        self.logger.debug(f"Speed changed.")
+        self.logger.info(f"Changing speed...")
+
+        self.dcm_targetRPM.value = int(targetSpeed)
+
+        current = int(self.dcm_currentRPM.value)
+        target = int(self.dcm_targetRPM.value)
+
+        if current == target:
+            self.logger.info("Speed already reached.")
+            return True
+
+        step = 1 if target > current else -1
+
+        self.dcm_busy.value = True
+
+        while current != target:
+            current += step
+
+            if step > 0 and current > target:
+                current = target
+            elif step < 0 and current < target:
+                current = target
+
+            self.dcm_currentRPM.value = current
+
+        self.dcm_busy.value = current > 0
+
+        self.logger.info("Speed changed.")
+
         return True
     =}
 
@@ -97,24 +150,54 @@ reactor EMCO_Mill_105 extends FrostMachine{
     state axes_ZtargetPos
     state axes_m_moveTo
     method moveTo_axes(x, y, z) {=
-        self.logger.debug(f"Moving to ({x};{y};{z}) ...")
+        self.logger.info(f"Moving to ({x};{y};{z}) ...")
+
         self.axes_busy.value = True
-        self.axes_XtargetPos.value = x
-        self.axes_YtargetPos.value = y
-        self.axes_ZtargetPos.value = z
+
+        self.axes_XtargetPos.value = int(x)
+        self.axes_YtargetPos.value = int(y)
+        self.axes_ZtargetPos.value = int(z)
+
+        def move_axis(current_node, target_node, axis_name):
+            current = int(current_node.value)
+            target = int(target_node.value)
+
+            if current == target:
+                self.logger.info(f"{axis_name} already in position.")
+                return
+
+            step = 1 if target > current else -1
+
+            while current != target:
+                current += step
+
+                if step > 0 and current > target:
+                    current = target
+                elif step < 0 and current < target:
+                    current = target
+
+                current_node.value = current
+
         # X moving
-        step = -1 if (self.axes_XcurrentPos.value - self.axes_XtargetPos.value) < 0 else 1
-        while self.axes_XcurrentPos.value != self.axes_XtargetPos.value:
-            self.axes_XcurrentPos.value += step
+        move_axis(
+            self.axes_XcurrentPos,
+            self.axes_XtargetPos,
+            "X"
+        )
         # Z moving
-        step = -1 if (self.axes_ZcurrentPos.value - self.axes_ZtargetPos.value) < 0 else 1
-        while self.axes_ZcurrentPos.value != self.axes_ZtargetPos.value:
-            self.axes_ZcurrentPos.value += step
+        move_axis(
+            self.axes_ZcurrentPos,
+            self.axes_ZtargetPos,
+            "Z"
+        )
         # Y moving
-        step = -1 if (self.axes_YcurrentPos.value - self.axes_YtargetPos.value) < 0 else 1
-        while self.axes_YcurrentPos.value != self.axes_YtargetPos.value:
-            self.axes_YcurrentPos.value += step
-        self.logger.debug(f"Position reached.")
+        move_axis(
+            self.axes_YcurrentPos,
+            self.axes_YtargetPos,
+            "Y"
+        )
+
+        self.logger.info("Position reached.")
         self.axes_busy.value = False
         return True
     =}
@@ -122,13 +205,13 @@ reactor EMCO_Mill_105 extends FrostMachine{
     reaction(startup) {=
         self.mill_busy                  = self.data_model.get_node("/MillingMachine/Busy")
 
-        self.door_isClosed              = self.data_model.get_node("/MillingMachine/Door/Variables/IsClosed")
-        self.door_isMoving              = self.data_model.get_node("/MillingMachine/Door/Variables/IsMoving")
+        self.door_busy                  = self.data_model.get_node("/MillingMachine/Door/Variables/IsClosed")
+        self.door_isMoving              = self.data_model.get_node("/MillingMachine/Door/Variables/Busy")
         self.door_time                  = self.data_model.get_node("/MillingMachine/Door/Variables/Time")
         self.door_m_openClose           = self.data_model.get_node("/MillingMachine/Door/Methods/OpenClose")
         self.door_m_openClose.callback  = self.openClose_door
 
-        self.tt_isChanging              = self.data_model.get_node("/MillingMachine/ToolTurret/Variables/IsChanging")
+        self.tt_busy                    = self.data_model.get_node("/MillingMachine/ToolTurret/Variables/Busy")
         self.tt_currentTool             = self.data_model.get_node("/MillingMachine/ToolTurret/Variables/CurrentTool")
         self.tt_targetTool              = self.data_model.get_node("/MillingMachine/ToolTurret/Variables/TargetTool")
         self.tt_totalStations           = self.data_model.get_node("/MillingMachine/ToolTurret/Variables/TotalStations")
@@ -140,7 +223,7 @@ reactor EMCO_Mill_105 extends FrostMachine{
         self.dcm_currentRPM             = self.data_model.get_node("/MillingMachine/DCMotor/Variables/CurrentRPM")
         self.dcm_targetRPM              = self.data_model.get_node("/MillingMachine/DCMotor/Variables/TargetRPM")
         self.dcm_m_changeSpeed          = self.data_model.get_node("/MillingMachine/DCMotor/Methods/ChangeSpeed")
-        self.dcm_m_start.callback       = self.changeSpeed_dcm
+        self.dcm_m_changeSpeed.callback       = self.changeSpeed_dcm
         
         self.axes_busy                  = self.data_model.get_node("/MillingMachine/Axes/Variables/Busy")
         self.axes_XcurrentPos           = self.data_model.get_node("/MillingMachine/Axes/Variables/X/CurrentPosition")
@@ -152,12 +235,24 @@ reactor EMCO_Mill_105 extends FrostMachine{
         self.axes_m_moveTo              = self.data_model.get_node("/MillingMachine/Axes/Methods/MoveTo")
         self.axes_m_moveTo.callback     = self.moveTo_axes
     =}
+
+    timer check_busy(1sec, 1sec)
+    logical action to_idle
+    reaction(check_busy) {=
+        self.mill_busy.value = self.door_busy.value or self.tt_busy.value or self.dcm_busy.value or self.axes_busy.value
+        if not self.mill_busy.value:
+            to_idle.schedule(SECS(0))
+    =}
+    reaction(to_idle) {=
+        self.logger.info(f"Millinig Machine is now idle.")
+    =}
 }
 
 main reactor {
-    m = new EMCO_Mill_105(name="milling machine")
-    bus = new FrostBus(name="frost_bus")
+    bus = new FrostBus(name="frost_bus", width=2)
+    s = new Scheduler(name="scheduler")
+    m = new EMCO_Mill_105(name="milling_machine")
 
-    m.channel_out -> bus.channel_in after 0
-    bus.channel_out -> m.channel_in after 0
+    s.channel_out, m.channel_out -> bus.channel_in after 0
+    bus.channel_out -> s.channel_in, m.channel_in after 0
 }
