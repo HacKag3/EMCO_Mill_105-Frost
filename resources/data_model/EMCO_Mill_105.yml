@@ -1,4 +1,4 @@
-name: EMCO_Mill_105         # name of the machine
+name: milling_machine         # name of the machine
 machine_category: unknown   # category of the machine
 machine_type: unknown       # type of the machine
 machine_model: unknown      # model of the machine
@@ -200,10 +200,6 @@ root:
         method: "/MillingMachine/Door/Methods/OpenClose"
         kwargs:
           wannaClose: false
-      - !!WaitConditionNode
-        variable: "/MillingMachine/Door/Variables/Busy"
-        operator: "=="
-        rhs: false
 
     - !!CompositeMethodNode
       name: CloseDoor
@@ -212,10 +208,6 @@ root:
         method: "/MillingMachine/Door/Methods/OpenClose"
         kwargs:
           wannaClose: true
-      - !!WaitConditionNode
-        variable: "/MillingMachine/Door/Variables/Busy"
-        operator: "=="
-        rhs: false
 
     - !!CompositeMethodNode
       name: ChangeTool1
@@ -224,10 +216,6 @@ root:
         method: "/MillingMachine/ToolTurret/Methods/Change"
         kwargs:
           targetTool: 1
-      - !!WaitConditionNode
-        variable: "/MillingMachine/ToolTurret/Variables/Busy"
-        operator: "=="
-        rhs: false
 
     - !!CompositeMethodNode
       name: GoToSpeed0
@@ -236,10 +224,6 @@ root:
         method: "/MillingMachine/DCMotor/Methods/ChangeSpeed"
         kwargs:
           targetSpeed: 0
-      - !!WaitConditionNode
-        variable: "/MillingMachine/DCMotor/Variables/Busy"
-        operator: "=="
-        rhs: false
 
     - !!CompositeMethodNode
       name: GoToSpeed500
@@ -248,10 +232,6 @@ root:
         method: "/MillingMachine/DCMotor/Methods/ChangeSpeed"
         kwargs:
           targetSpeed: 500
-      - !!WaitConditionNode
-        variable: "/MillingMachine/DCMotor/Variables/Busy"
-        operator: "=="
-        rhs: false
 
     - !!CompositeMethodNode
       name: MoveToXYZ
@@ -262,13 +242,9 @@ root:
           x: 50
           y: 5
           z: 20
-      - !!WaitConditionNode
-        variable: "/MillingMachine/Axes/Variables/Busy"
-        operator: "=="
-        rhs: false
 
     - !!CompositeMethodNode
-      name: MoveToXYZ
+      name: MoveToXYZ0
       cfg:
       - !!CallMethodNode
         method: "/MillingMachine/Axes/Methods/MoveTo"
@@ -276,8 +252,4 @@ root:
           x: 0
           y: 0
           z: 0
-      - !!WaitConditionNode
-        variable: "/MillingMachine/Axes/Variables/Busy"
-        operator: "=="
-        rhs: false
     

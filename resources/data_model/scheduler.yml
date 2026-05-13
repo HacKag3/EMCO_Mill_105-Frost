@@ -1,4 +1,4 @@
-name: "Scheduler" 
+name: "scheduler" 
 root:
   !!FolderNode
   name: "Scheduler"
@@ -15,3 +15,8 @@ root:
         - !!CallRemoteMethodNode
           method: "${remote_method}"
           remote_id: "${remote_machine}"
+        - !!WaitRemoteEventNode
+          variable: "/MillingMachine/Busy"
+          remote_id: "${remote_machine}"
+          rhs: false
+          operator: "=="

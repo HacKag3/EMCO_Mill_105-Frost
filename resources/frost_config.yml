@@ -22,4 +22,4 @@ reactors:
       data_model_path: "resources/data_model/EMCO_Mill_105.yml"
     reactors:
       message_filter:
-        logging_level: INFO
+        logging_level: WARNING
