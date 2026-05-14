@@ -64,7 +64,7 @@
     ],
     "machines": [
         {
-            "id": "0",
+            "id": "milling_machine",
             "name": "milling_machine"
         }
     ],

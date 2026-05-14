@@ -67,7 +67,7 @@ reactor Scheduler(_scheduling_instance="undefined", _scheduling_interval=1) exte
         self.logger.debug(f"Starting tasks: {start_tasks.value}")
 
         for task, machine in start_tasks.value:
-            machine = machine.name
+            # machine = machine.name
             task_name = task.task.name
             self.logger.info(f"Starting task {task_name} on machine {machine}")
             task.start_time = self._get_current_logical_time_sec()
