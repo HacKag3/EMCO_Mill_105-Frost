@@ -317,6 +317,13 @@ reactor EMCO_Mill_105 extends FrostMachine{
         )
         
         self.busy.value = is_moving_or_working
+        
+        return is_moving_or_working
+    =}
+
+    timer delayed_update(1 sec, 1 sec)
+    reaction(delayed_update) {=
+        self.busy.value = self.busy.value
     =}
 
     reaction(startup) {=

@@ -48,7 +48,7 @@ root:
         name: Success
   
   - !!FolderNode
-    name: CFG_Method
+    name: CFG_Methods
     children:
 
     - !!CompositeMethodNode

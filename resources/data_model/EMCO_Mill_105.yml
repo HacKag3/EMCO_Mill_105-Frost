@@ -33,6 +33,10 @@ root:
         name: dcm
       - !!BooleanVariableNode
         name: axes
+      returns:
+      - !!BooleanVariableNode
+        name: Status
+
     
     - !!CompositeMethodNode
       name: CheckBusy
