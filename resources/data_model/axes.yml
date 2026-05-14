@@ -71,7 +71,7 @@ root:
         name: Reached
         
   - !!FolderNode
-    name: CFG_Method
+    name: CFG_Methods
     children:
     
     - !!CompositeMethodNode
