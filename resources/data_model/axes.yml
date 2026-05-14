@@ -1,4 +1,4 @@
-name: EMCO_Axes                     # name of the machine
+name: axes                     # name of the machine
 machine_category: "unknown"         # category of the machine
 machine_type: "unknown"             # type of the machine
 machine_model: "unknown"            # model of the machine
@@ -18,36 +18,37 @@ root:
     - !!FolderNode
       name: X
       children:
-      - !!NumericalVariableNode
-        name: CurrentPosition
-        measure_unit: ""
-        initial_value: 0.0
-      - !!NumericalVariableNode
-        name: TargetPosition
-        measure_unit: ""
-        initial_value: 0.0
+        - !!NumericalVariableNode
+          name: CurrentPosition
+          measure_unit: "NoneMeasureUnits.NONE"
+          initial_value: 0.0
+        - !!NumericalVariableNode
+          name: TargetPosition
+          measure_unit: "NoneMeasureUnits.NONE"
+          initial_value: 0.0
     - !!FolderNode
       name: Y
       children:
-      - !!NumericalVariableNode
-        name: CurrentPosition
-        measure_unit: ""
-        initial_value: 0.0
-      - !!NumericalVariableNode
-        name: TargetPosition
-        measure_unit: ""
-        initial_value: 0.0
+        - !!NumericalVariableNode
+          name: CurrentPosition
+          measure_unit: "NoneMeasureUnits.NONE"
+          initial_value: 0.0
+        - !!NumericalVariableNode
+          name: TargetPosition
+          measure_unit: "NoneMeasureUnits.NONE"
+          initial_value: 0.0
     - !!FolderNode
       name: Z
       children:
-      - !!NumericalVariableNode
-        name: CurrentPosition
-        measure_unit: ""
-        initial_value: 0.0
-      - !!NumericalVariableNode
-        name: TargetPosition
-        measure_unit: ""
-        initial_value: 0.0
+        - !!NumericalVariableNode
+          name: CurrentPosition
+          measure_unit: "NoneMeasureUnits.NONE"
+          initial_value: 0.0
+        - !!NumericalVariableNode
+          name: TargetPosition
+          measure_unit: "NoneMeasureUnits.NONE"
+          initial_value: 0.0
+  
   - !!FolderNode
     name: Methods
     description:
@@ -57,11 +58,39 @@ root:
       description:
       parameters:
       - !!NumericalVariableNode
-        name: X_target
+        name: x
+        measure_unit: "NoneMeasureUnits.NONE"
       - !!NumericalVariableNode
-        name: Y_target
+        name: y
+        measure_unit: "NoneMeasureUnits.NONE"
       - !!NumericalVariableNode
-        name: Z_target
+        name: z
+        measure_unit: "NoneMeasureUnits.NONE"
       returns:
       - !!BooleanVariableNode
         name: Reached
+        
+  - !!FolderNode
+    name: CFG_Method
+    children:
+    
+    - !!CompositeMethodNode
+      name: MoveToXYZ
+      cfg:
+      - !!CallMethodNode
+        method: "/Axes/Methods/MoveTo"
+        kwargs:
+          x: 50
+          y: 5
+          z: 20
+
+    - !!CompositeMethodNode
+      name: MoveToXYZ0
+      cfg:
+      - !!CallMethodNode
+        method: "/Axes/Methods/MoveTo"
+        kwargs:
+          x: 0
+          y: 0
+          z: 0
+    

@@ -1,0 +1,122 @@
+{
+    "jobs": [
+        {
+            "id": "0",
+            "name": "J_0",
+            "tasks": [
+                {
+                    "id": "0",
+                    "name": "Door/CFG_Methods/CloseDoor",
+                    "processing_time": 2,
+                    "requires": [
+                        "doorMoving"
+                    ]
+                },
+                {
+                    "id": "1",
+                    "name": "ToolTurret/CFG_Methods/ChangeTool1",
+                    "processing_time": 2,
+                    "dependencies": [
+                        "0"
+                    ],
+                    "requires": [
+                        "toolChanging"
+                    ]
+                },
+                {
+                    "id": "2",
+                    "name": "DCMotor/CFG_Methods/GoToSpeed500",
+                    "processing_time": 8,
+                    "dependencies": [
+                        "0","1"
+                    ],
+                    "requires": [
+                        "spindleMoving"
+                    ]
+                },
+                {
+                    "id": "3",
+                    "name": "Axes/CFG_Methods/MoveToXYZ",
+                    "processing_time": 8,
+                    "dependencies": [
+                        "0","1","2"
+                    ],
+                    "requires": [
+                        "axesMoving"
+                    ]
+                },
+                {
+                    "id": "4",
+                    "name": "Axes/CFG_Methods/MoveToXYZ0",
+                    "processing_time": 8,
+                    "dependencies": [
+                        "0","1","2","3"
+                    ],
+                    "requires": [
+                        "axesMoving"
+                    ]
+                },
+                {
+                    "id": "5",
+                    "name": "DCMotor/CFG_Methods/GoToSpeed0",
+                    "processing_time": 8,
+                    "dependencies": [
+                        "0","1","2","3","4"
+                    ],
+                    "requires": [
+                        "spindleMoving"
+                    ]
+                },
+                {
+                    "id": "6",
+                    "name": "Door/CFG_Methods/DoorcOpenDoor",
+                    "processing_time": 2,
+                    "dependencies": [
+                        "0","1","2","3","5"
+                    ],
+                    "requires": [
+                        "doorMoving"
+                    ]
+                }
+            ],
+            "priority": 3,
+            "due_date": 1405
+        }
+    ],
+    "machines": [
+        {
+            "id": "milling_machine",
+            "name": "milling_machine"
+        },
+        {
+            "id": "door",
+            "name": "door",
+            "capabilities": [
+                "doorMoving"
+            ]
+        },
+        {
+            "id": "tool_turret",
+            "name": "tool_turret",
+            "capabilities": [
+                "toolChanging"
+            ]
+        },
+        {
+            "id": "spindle",
+            "name": "spindle",
+            "capabilities": [
+                "spindleMoving"
+            ]
+        },
+        {
+            "id": "axes",
+            "name": "axes",
+            "capabilities": [
+                "axesMoving"
+            ]
+        }
+    ],
+    "travel_times": {
+    }
+}

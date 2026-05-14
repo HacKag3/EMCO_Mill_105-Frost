@@ -1,4 +1,4 @@
-name: EMCO_Door                     # name of the machine
+name: door                     # name of the machine
 machine_category: "unknown"         # category of the machine
 machine_type: "unknown"             # type of the machine
 machine_model: "unknown"            # model of the machine
@@ -16,12 +16,12 @@ root:
       name: IsClosed
       initial_value: true
     - !!BooleanVariableNode
-      name: IsMoving
+      name: Busy
       initial_value: false
     - !!NumericalVariableNode
       name: Time
       description: "Time required to complete an open/close operation"
-      measure_unit: ""
+      measure_unit: "NoneMeasureUnits.NONE"
       initial_value: 0.0
   - !!FolderNode
     name: Methods
@@ -37,3 +37,23 @@ root:
       returns:
       - !!BooleanVariableNode
         name: Success
+        
+  - !!FolderNode
+    name: CFG_Methods
+    children:
+
+    - !!CompositeMethodNode
+      name: OpenDoor
+      cfg:
+      - !!CallMethodNode
+        method: "/Door/Methods/OpenClose"
+        kwargs:
+          wannaClose: false
+
+    - !!CompositeMethodNode
+      name: CloseDoor
+      cfg:
+      - !!CallMethodNode
+        method: "/Door/Methods/OpenClose"
+        kwargs:
+          wannaClose: true

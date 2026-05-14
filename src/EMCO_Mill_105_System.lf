@@ -1,50 +1,142 @@
-target Python{};
+target Python{
+    files: [
+        "frost/src/python_lib/frost.py",
+        "frost/src/python_lib/l_formatter.py",
+        "frost/src/python_lib/time_utils.py",
+    ],
+}
 
 import FrostMachine from "../frost/src/lib/FrostMachine.lf"
 import FrostBus from "../frost/src/lib/FrostBus.lf"
 
-preamble{=
-    import time
+preamble {=
+    from frost import *
+    from frost_planner.generator.instance_generator import load_instance_from_json
+    from frost_planner.executor.static_executor import StaticExecutor
+    from frost_planner.solver.genetic_solver import GeneticAlgorithmSolver
 =}
 
+reactor Scheduler(_scheduling_instance="undefined", _scheduling_interval=1) extends FrostMachine{
+    state scheduling_instance = _scheduling_instance
+    state scheduling_interval = _scheduling_interval # in seconds
+    state _executor
+    state _active_tasks = {={}=}
+    logical action task_completed
+    logical action start_tasks
+    logical action update_schedule
+
+    reaction(startup) {=
+        self.scheduling_instance = load_instance_from_json(self.scheduling_instance)
+        self._executor = StaticExecutor(GeneticAlgorithmSolver(instance=self.scheduling_instance))
+    =}
+
+    method create_method_request(t, method_path, args, kwargs){=
+        return self.message_builder.build_invoke_method_message(
+            target=t,
+            node=method_path,
+            args=args,
+            kwargs=kwargs
+        )
+    =}
+
+    // @label connected_to_bus
+    reaction(connected_to_bus) -> update_schedule{=
+        self.logger.info("Connected to bus. Starting scheduling...")
+        update_schedule.schedule(0)
+    =}
+
+    // @label update_schedule
+    reaction(update_schedule) -> update_schedule, start_tasks{=
+        executor = self._executor
+        logical_time = self._get_current_logical_time_sec()
+        self.logger.debug(f"Scheduling at logical time {logical_time} sec")
+        executor.update_task_status()
+        schedule = executor.update_schedule(start_time=logical_time)
+
+        # get the tasks that can be started now
+        next_tasks = executor.next_ready_tasks()
+        start_tasks.schedule(0, next_tasks)
+
+        scheduling_interval = SECS(self.scheduling_interval)
+        self.logger.debug(f"Scheduling next task in {scheduling_interval}...")
+        update_schedule.schedule(scheduling_interval)
+    =}
+
+    // @label run_tasks
+    reaction(start_tasks) {=
+        self.logger.debug(f"Starting tasks: {start_tasks.value}")
+
+        for task, machine in start_tasks.value:
+            task_name = task.task.name
+            self.logger.info(f"Starting task {task_name} on machine {machine}")
+            task.start_time = self._get_current_logical_time_sec()
+            self._executor.task_started(task)
+
+            msg = self.create_method_request(self.data_model.name, f"/Scheduler/StartTask", args=[machine, f"/{task_name}"], kwargs={})
+            self._active_tasks[msg.correlation_id] = task
+            self.protocol_mng.handle_request(msg)
+    =}
+
+    reaction(response_messages) {=
+        for bank_index, message in response_messages.value:
+
+            if message.correlation_id not in self._active_tasks:
+                continue
+
+            if message.header.msg_name != MethodMsgName.COMPLETED:
+                continue
+
+            task = self._active_tasks.pop(message.correlation_id)
+            task.end_time = self._get_current_logical_time_sec()
+            self._executor.task_completed(task)
+            self.logger.warning(f"Task {task.task.name} completed on machine {task.machine}")
+
+    =}
+    
+    reaction(shutdown) {=
+        tasks = [task for job in self.scheduling_instance.jobs for task in job.tasks]
+        assert all(
+            task.status == TaskStatus.COMPLETED for task in tasks
+        ), "Not all tasks were completed"
+    =}
+}
+
 reactor Door extends FrostMachine {
+    state busy
     state isClosed
-    state isMoving
     state movingTime
     state m_openClose
 
     method openClose_door(wannaClose) {=
-        if self.isMoving.value:
+        if self.busy.value:
             return False
             
-        self.isMoving.value = True
+        self.busy.value = True
         if wannaClose:
-            self.logger.debug(f"Closing door...")
+            self.logger.info(f"Closing door...")
             if not self.isClosed.value:
-                time.sleep(self.movingTime.value)
                 self.isClosed.value = True
-            self.logger.debug(f"Door closed.")
+            self.logger.info(f"Door closed.")
         else:
-            self.logger.debug(f"Opening door...")
+            self.logger.info(f"Opening door...")
             if self.isClosed.value:
-                time.sleep(self.movingTime.value)
                 self.isClosed.value = False
-            self.logger.debug(f"Door opened.")
-        self.isMoving.value = False
+            self.logger.info(f"Door opened.")
+        self.busy.value = False
         return True
     =}
 
     reaction(startup) {=
-        isClosed     = self.data_model.get_node("/Door/Variables/IsClosed")
-        isMoving     = self.data_model.get_node("/Door/Variables/IsMoving")
-        movingTime   = self.data_model.get_node("/Door/Variables/Time")
-        m_openClose  = self.data_model.get_node("/Door/Methods/OpenClose")
+        self.isClosed     = self.data_model.get_node("/Door/Variables/IsClosed")
+        self.busy         = self.data_model.get_node("/Door/Variables/Busy")
+        self.movingTime   = self.data_model.get_node("/Door/Variables/Time")
+        self.m_openClose  = self.data_model.get_node("/Door/Methods/OpenClose")
         self.m_openClose.callback = self.openClose_door
     =}
 }
 
 reactor ToolTurret extends FrostMachine {
-    state isChanging
+    state busy
     state currentTool
     state targetTool
     state totalStations
@@ -52,35 +144,38 @@ reactor ToolTurret extends FrostMachine {
     state m_change
 
     method change_tool(targetTool) {=
-        if self.isChanging.value:
+        if self.busy.value:
             return False
 
-        def directionStep(a, b, N):
-            clkWise = (b - a) % N
-            counter_clkWise = (a - b) % N
-            if clkWise <= counter_clkWise:
-                return 1
-            return -1
+        self.busy.value = True
+        target = int(targetTool)
+        N = int(self.totalStations.value)
 
-        self.isChanging.value = True
-        self.logger.debug(f"Changing tool...")
-        self.targetTool.value = targetTool
-        step = directionStep(self.targetTool.value, self.currentTool.value)
-        while self.currentTool.value != self.targetTool.value:
-            time.sleep(self.changeTime.value)
-            self.currentTool.value += step
-        self.logger.debug(f"Tool changed.")
-        self.isChanging.value = False
+        self.logger.info(f"Changing tool to {target}...")
+        
+        while self.currentTool.value != target:
+            curr = self.currentTool.value
+            clk = (target - curr) % N
+            c_clk = (curr - target) % N
+            step = 1 if clk <= c_clk else -1
+            
+            next_t = curr + step
+            if next_t < 1: next_t = N
+            if next_t > N: next_t = 1
+            self.currentTool.value = next_t
+            
+        self.logger.info(f"Tool changed to {self.currentTool.value}.")
+        self.busy.value = False
         return True
     =}
 
     reaction(startup) {=
-        isChanging     = self.data_model.get_node("/ToolTurret/Variables/IsChanging")
-        currentTool    = self.data_model.get_node("/ToolTurret/Variables/CurrentTool")
-        targetTool     = self.data_model.get_node("/ToolTurret/Variables/TargetTool")
-        totalStations  = self.data_model.get_node("/ToolTurret/Variables/TotalStations")
-        changeTime     = self.data_model.get_node("/ToolTurret/Variables/Time")
-        m_change       = self.data_model.get_node("/ToolTurret/Methods/Change")
+        self.busy           = self.data_model.get_node("/ToolTurret/Variables/Busy")
+        self.currentTool    = self.data_model.get_node("/ToolTurret/Variables/CurrentTool")
+        self.targetTool     = self.data_model.get_node("/ToolTurret/Variables/TargetTool")
+        self.totalStations  = self.data_model.get_node("/ToolTurret/Variables/TotalStations")
+        self.changeTime     = self.data_model.get_node("/ToolTurret/Variables/Time")
+        self.m_change       = self.data_model.get_node("/ToolTurret/Methods/Change")
         self.m_change.callback = self.change_tool
     =}
 }
@@ -89,30 +184,47 @@ reactor Spindle extends FrostMachine {
     state busy
     state currentRPM
     state targetRPM
-    state m_changeSpeed
+    state m_change
 
     method changeSpeed_dcm(targetSpeed) {=
-        self.logger.debug(f"Changing speed...")
-        self.targetRPM.value = targetSpeed
-        step = -1 if (self.currentRPM.value - self.targetRPM.value) < 0 else 1
-        while self.currentRPM.value != self.targetRPM.value:
-            if self.currentRPM.value > 0:
-                if not self.busy.value:
-                    self.busy.value = True
-            else:
-                self.busy.value = False
-            time.sleep(1)
-            self.currentRPM.value += step
-        self.logger.debug(f"Speed changed.")
+        self.logger.info(f"Changing speed...")
+
+        self.targetRPM.value = int(targetSpeed)
+
+        current = int(self.currentRPM.value)
+        target = int(self.targetRPM.value)
+
+        if current == target:
+            self.logger.info("Speed already reached.")
+            return True
+
+        step = 1 if target > current else -1
+
+        self.busy.value = True
+
+        while current != target:
+            current += step
+
+            if step > 0 and current > target:
+                current = target
+            elif step < 0 and current < target:
+                current = target
+
+            self.currentRPM.value = current
+
+        self.busy.value = False
+
+        self.logger.info("Speed changed.")
+
         return True
     =}
 
     reaction(startup) {=
-        busy          = self.data_model.get_node("/DCMotor/Variables/Busy")
-        currentRPM    = self.data_model.get_node("/DCMotor/Variables/CurrentRPM")
-        targetRPM     = self.data_model.get_node("/DCMotor/Variables/TargetRPM")
-        m_changeSpeed = self.data_model.get_node("/DCMotor/Methods/ChangeSpeed")
-        self.m_start.callback = self.changeSpeed_dcm
+        self.busy            = self.data_model.get_node("/DCMotor/Variables/Busy")
+        self.currentRPM      = self.data_model.get_node("/DCMotor/Variables/CurrentRPM")
+        self.targetRPM       = self.data_model.get_node("/DCMotor/Variables/TargetRPM")
+        self.m_change        = self.data_model.get_node("/DCMotor/Methods/ChangeSpeed")
+        self.m_change.callback = self.changeSpeed_dcm
     =}
 }
 
@@ -127,37 +239,67 @@ reactor AxesMotor extends FrostMachine {
     state m_moveTo
 
     method moveTo_axes(x, y, z) {=
-        self.logger.debug(f"Moving to ({x};{y};{z}) ...")
+        self.logger.info(f"Moving to ({x};{y};{z}) ...")
+
         self.busy.value = True
-        self.XtargetPos.value = x
-        self.YtargetPos.value = y
-        self.ZtargetPos.value = z
+
+        self.XtargetPos.value = int(x)
+        self.YtargetPos.value = int(y)
+        self.ZtargetPos.value = int(z)
+
+        def move_axis(current_node, target_node, axis_name):
+            current = int(current_node.value)
+            target = int(target_node.value)
+
+            if current == target:
+                self.logger.info(f"{axis_name} already in position.")
+                return
+
+            step = 1 if target > current else -1
+
+            while current != target:
+                current += step
+
+                if step > 0 and current > target:
+                    current = target
+                elif step < 0 and current < target:
+                    current = target
+
+                current_node.value = current
+
         # X moving
-        step = -1 if (self.XcurrentPos.value - self.XtargetPos.value) < 0 else 1
-        while self.XcurrentPos.value != self.XtargetPos.value:
-            self.XcurrentPos.value += step
+        move_axis(
+            self.XcurrentPos,
+            self.XtargetPos,
+            "X"
+        )
         # Z moving
-        step = -1 if (self.ZcurrentPos.value - self.ZtargetPos.value) < 0 else 1
-        while self.ZcurrentPos.value != self.ZtargetPos.value:
-            self.ZcurrentPos.value += step
+        move_axis(
+            self.ZcurrentPos,
+            self.ZtargetPos,
+            "Z"
+        )
         # Y moving
-        step = -1 if (self.YcurrentPos.value - self.YtargetPos.value) < 0 else 1
-        while self.YcurrentPos.value != self.YtargetPos.value:
-            self.YcurrentPos.value += step
-        self.logger.debug(f"Position reached.")
+        move_axis(
+            self.YcurrentPos,
+            self.YtargetPos,
+            "Y"
+        )
+
+        self.logger.info("Position reached.")
         self.busy.value = False
         return True
     =}
 
     reaction(startup) {=
-        busy         = self.data_model.get_node("/Axes/Variables/Busy")
-        XcurrentPos  = self.data_model.get_node("/Axes/Variables/X/CurrentPosition")
-        XtargetPos   = self.data_model.get_node("/Axes/Variables/X/TargetPosition")
-        YcurrentPos  = self.data_model.get_node("/Axes/Variables/Y/CurrentPosition")
-        YtargetPos   = self.data_model.get_node("/Axes/Variables/Y/TargetPosition")
-        ZcurrentPos  = self.data_model.get_node("/Axes/Variables/Z/CurrentPosition")
-        ZtargetPos   = self.data_model.get_node("/Axes/Variables/Z/TargetPosition")
-        m_moveTo     = self.data_model.get_node("/Axes/Methods/MoveTo")
+        self.busy         = self.data_model.get_node("/Axes/Variables/Busy")
+        self.XcurrentPos  = self.data_model.get_node("/Axes/Variables/X/CurrentPosition")
+        self.XtargetPos   = self.data_model.get_node("/Axes/Variables/X/TargetPosition")
+        self.YcurrentPos  = self.data_model.get_node("/Axes/Variables/Y/CurrentPosition")
+        self.YtargetPos   = self.data_model.get_node("/Axes/Variables/Y/TargetPosition")
+        self.ZcurrentPos  = self.data_model.get_node("/Axes/Variables/Z/CurrentPosition")
+        self.ZtargetPos   = self.data_model.get_node("/Axes/Variables/Z/TargetPosition")
+        self.m_moveTo     = self.data_model.get_node("/Axes/Methods/MoveTo")
         self.m_moveTo.callback = self.moveTo_axes
     =}
 }
@@ -165,27 +307,34 @@ reactor AxesMotor extends FrostMachine {
 reactor EMCO_Mill_105 extends FrostMachine{
     # MillingMachine
     state busy
-    state m_startTask
-
-    method startTask(tool, speed, x, y, z) {=
-        return True
+    state calc_busy
+    method calcBusy(door, tt, dcm, axes) {=
+        is_moving_or_working = (
+            door or 
+            tt or 
+            dcm or 
+            axes
+        )
+        
+        self.busy.value = is_moving_or_working
     =}
-    
+
     reaction(startup) {=
-        busy          = self.data_model.get_node("MillingMachine/Busy")
-        m_startTask     = self.data_model.get_node("MillingMachine/StartTask")
-        self.m_startTask.callback = startTask
+        self.busy           = self.data_model.get_node("/MillingMachine/Variables/Busy")
+        self.calc_busy      = self.data_model.get_node("/MillingMachine/Methods/CalculateBusy")
+        self.calc_busy.callback     = self.calcBusy
     =}
 }
 
 main reactor {
-    d = new Door(name="Door")
-    t = new ToolTurret(name="Tool_Turret")
-    a = new AxesMotor(name="Axes")
-    s = new Spindle(name="DC_motor")
-    m = new EMCO_Mill_105(name="Milling_Machine")
-    bus = new FrostBus(name="frost_bus", width=5)
+    bus = new FrostBus(name="frost_bus", width=6)
+    scheduler = new Scheduler(name="scheduler")
+    d = new Door(name="door")
+    t = new ToolTurret(name="tool_turret")
+    a = new AxesMotor(name="axes")
+    s = new Spindle(name="spindle")
+    m = new EMCO_Mill_105(name="milling_machine")
 
-    d.channel_out, t.channel_out, a.channel_out , s.channel_out, m.channel_out -> bus.channel_in after 0
-    bus.channel_out -> d.channel_in, t.channel_in, a.channel_in , s.channel_in, m.channel_in after 0
+    scheduler.channel_out, d.channel_out, t.channel_out, a.channel_out , s.channel_out, m.channel_out -> bus.channel_in after 0
+    bus.channel_out -> scheduler.channel_in, d.channel_in, t.channel_in, a.channel_in , s.channel_in, m.channel_in after 0
 }

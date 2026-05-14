@@ -1,4 +1,4 @@
-name: EMCO_Spindle                # name of the machine
+name: spindle                # name of the machine
 machine_category: "unknown"         # category of the machine
 machine_type: "unknown"             # type of the machine
 machine_model: "unknown"            # model of the machine
@@ -17,11 +17,11 @@ root:
       initial_value: false
     - !!NumericalVariableNode
       name: CurrentRPM
-      measure_unit: ""
+      measure_unit: "NoneMeasureUnits.NONE"
       initial_value: 0.0
     - !!NumericalVariableNode
       name: TargetRPM
-      measure_unit: ""
+      measure_unit: "NoneMeasureUnits.NONE"
       initial_value: 0.0
   - !!FolderNode
     name: Methods
@@ -32,8 +32,27 @@ root:
       description:
       parameters:
       - !!NumericalVariableNode
-        name: TargetSpeed
+        name: targetSpeed
       returns:
       - !!BooleanVariableNode
         name: Reached
-    
+
+  - !!FolderNode
+    name: CFG_Method
+    children:
+
+    - !!CompositeMethodNode
+      name: GoToSpeed0
+      cfg:
+      - !!CallMethodNode
+        method: "/DCMotor/Methods/ChangeSpeed"
+        kwargs:
+          targetSpeed: 0
+
+    - !!CompositeMethodNode
+      name: GoToSpeed500
+      cfg:
+      - !!CallMethodNode
+        method: "/DCMotor/Methods/ChangeSpeed"
+        kwargs:
+          targetSpeed: 500

@@ -1,35 +1,50 @@
 time_precision: MSECS
 logging_level: INFO
 reactors:
-  EMCO_Door:
+  frost_bus:
+    logging_level: INFO
+    parameters:
+      data_model_path: "resources/data_model/frost_bus.yml"
+    reactors:
+      message_filter:
+        logging_level: INFO
+  scheduler:
+    logging_level: INFO
+    parameters:
+      data_model_path: "resources/data_model/scheduler.yml"
+      scheduling_instance: "resources/scheduling_instances/test_scheduler.json"
+    reactors:
+      message_filter:
+        logging_level: WARNING
+  door:
     logging_level: INFO
     parameters:
       data_model_path: "resources/data_model/door.yml"
     reactors:
       message_filter:
         logging_level: INFO
-  EMCO_Axes:
+  axes:
     logging_level: INFO
     parameters:
       data_model_path: "resources/data_model/axes.yml"
     reactors:
       message_filter:
         logging_level: INFO
-  EMCO_Spindle:
+  spindle:
     logging_level: INFO
     parameters:
       data_model_path: "resources/data_model/spindle.yml"
     reactors:
       message_filter:
         logging_level: INFO
-  EMCO_Tool_Turret:
+  tool_turret:
     logging_level: INFO
     parameters:
       data_model_path: "resources/data_model/tool_turret.yml"
     reactors:
       message_filter:
         logging_level: INFO
-  EMCO_Mill_105:
+  milling_machine:
     logging_level: INFO
     parameters:
       data_model_path: "resources/data_model/EMCO_Mill_105.yml"

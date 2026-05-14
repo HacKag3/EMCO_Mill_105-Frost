@@ -1,4 +1,4 @@
-name: EMCO_Mill_105         # name of the machine
+name: milling_machine         # name of the machine
 machine_category: unknown   # category of the machine
 machine_type: unknown       # type of the machine
 machine_model: unknown      # model of the machine
@@ -9,94 +9,55 @@ root:
   description:
   children:
 
-  - !!BooleanVariableNode
-    name: Busy
-    initial_value: false
+  - !!FolderNode
+    name: Variables
+    description:
+    children:
+    - !!BooleanVariableNode
+      name: Busy
+      initial_value: false
   
   - !!FolderNode
     name: Methods
     description:
     children:
-    - !!CompositeMethod
-      name: StartTask
+    - !!AsyncMethodNode
+      name: CalculateBusy
       description:
       parameters:
-      - !!NumericalVariableNode
-        name: TargetToolID
-      - !!NumericalVariableNode
-        name: TargetSpeed
-      - !!NumericalVariableNode
-        name: X_target
-      - !!NumericalVariableNode
-        name: Y_target
-      - !!NumericalVariableNode
-        name: Z_target
-      returns:
       - !!BooleanVariableNode
-        name: Done
-
+        name: door
+      - !!BooleanVariableNode
+        name: tt
+      - !!BooleanVariableNode
+        name: dcm
+      - !!BooleanVariableNode
+        name: axes
+    
+    - !!CompositeMethodNode
+      name: CheckBusy
       cfg:
-      - !!WriteVariableNode
-        variable: "/MillingMachine/Busy"
-        value: true
-
-      - !!CallMethodNode
-        method: "/Door/Methods/OpenClose"
-        kwargs:
-          wannaClose: true
-      - !!WaitConditionNode
-        variable: "/Door/Variables/IsClosed"
-        operator: "=="
-        rhs: true
-
-      - !!CallMethodNode
-        method: "/ToolTurret/Methods/Change"
-        kwargs:
-          TargetToolID: 1
-      - !!WaitConditionNode
-        variable: "/ToolTurret/Variables/IsChanging"
-        operator: "=="
-        rhs: false
-
-      - !!CallMethodNode
-        method: "/DCMotor/Methods/ChangeSpeed"
-        kwargs:
-          TargetSpeed: 100
-      - !!WaitConditionNode
-        variable: "/Axes/Variables/TargetRPM"
-        operator: "=="
-        rhs: 100
-
-      - !!CallMethodNode
-        method: "/Axes/Methods/MoveTo"
-        kwargs:
-          X_target: 1
-          Y_target: 1
-          Z_target: 1
-      - !!WaitConditionNode
+      - !!ReadRemoteVariableNode
+        variable: "/Door/Variables/Busy"
+        remote_id: "door"
+        store_as: "door_busy"
+      - !!ReadRemoteVariableNode
+        variable: "/ToolTurret/Variables/Busy"
+        remote_id: "tool_turret"
+        store_as: "tt_busy"
+      - !!ReadRemoteVariableNode
+        variable: "/DCMotor/Variables/Busy"
+        remote_id: "spindle"
+        store_as: "dcm_busy"
+      - !!ReadRemoteVariableNode
         variable: "/Axes/Variables/Busy"
-        operator: "=="
-        rhs: false
-
+        remote_id: "axes"
+        store_as: "axes_busy"
       - !!CallMethodNode
-        method: "/DCMotor/Methods/ChangeSpeed"
+        method: "/MillingMachine/Methods/CalculateBusy"
         kwargs:
-          TargetSpeed: 0
-      - !!WaitConditionNode
-        variable: "/Axes/Variables/Busy"
-        operator: "=="
-        rhs: false
-
-      - !!CallMethodNode
-        method: "/Door/Methods/OpenClose"
-        kwargs:
-          wannaClose: false
-      - !!WaitConditionNode
-        variable: "/Door/Variables/IsClosed"
-        operator: "=="
-        rhs: true
-
-      - !!WriteVariableNode
-        variable: "/MillingMachine/Busy"
-        value: false
+          door: "${door_busy}"
+          tt: "${tt_busy}"
+          dcm: "${dcm_busy}"
+          axes: "${axes_busy}"
     

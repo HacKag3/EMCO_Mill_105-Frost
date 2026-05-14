@@ -1,4 +1,4 @@
-name: EMCO_Tool_Turret              # name of the machine
+name: tool_turret              # name of the machine
 machine_category: "unknown"         # category of the machine
 machine_type: "unknown"             # type of the machine
 machine_model: "unknown"            # model of the machine
@@ -13,24 +13,24 @@ root:
     description:
     children:
     - !!BooleanVariableNode
-      name: IsChanging
+      name: Busy
       initial_value: false
     - !!NumericalVariableNode
       name: CurrentTool
-      measure_unit: ""
+      measure_unit: "NoneMeasureUnits.NONE"
       initial_value: 0
     - !!NumericalVariableNode
       name: TargetTool
-      measure_unit: ""
+      measure_unit: "NoneMeasureUnits.NONE"
       initial_value: 0
     - !!NumericalVariableNode
       name: TotalStations
-      measure_unit: ""
+      measure_unit: "NoneMeasureUnits.NONE"
       initial_value: 10
     - !!NumericalVariableNode
       name: Time
       description: "Time needed to switch between two adjacent stations"
-      measure_unit: ""
+      measure_unit: "NoneMeasureUnits.NONE"
       initial_value: 0.0
   - !!FolderNode
     name: Methods
@@ -41,7 +41,20 @@ root:
       description:
       parameters: 
       - !!NumericalVariableNode
-        name: TargetToolID
+        name: targetTool
+        measure_unit: "NoneMeasureUnits.NONE"
       returns:
       - !!BooleanVariableNode
         name: Success
+  
+  - !!FolderNode
+    name: CFG_Method
+    children:
+
+    - !!CompositeMethodNode
+      name: ChangeTool1
+      cfg:
+      - !!CallMethodNode
+        method: "/ToolTurret/Methods/Change"
+        kwargs:
+          targetTool: 1
