@@ -117,16 +117,17 @@ reactor EMCO_Mill_105 extends FrostMachine{
             return False
             
         self.door_busy.value = True
+
         if wannaClose:
             self.logger.info(f"Closing door...")
-            if not self.door_isClosed.value:
-                self.door_isClosed.value = True
-            self.logger.info(f"Door closed.")
         else:
             self.logger.info(f"Opening door...")
-            if self.door_isClosed.value:
-                self.door_isClosed.value = False
+        self.door_isClosed = wannaClose
+        if wannaClose:
+            self.logger.info(f"Door closed.")
+        else:
             self.logger.info(f"Door opened.")
+
         self.door_busy.value = False
         return True
     =}
@@ -150,6 +151,7 @@ reactor EMCO_Mill_105 extends FrostMachine{
             return -1
 
         self.tt_busy.value = True
+
         self.logger.info(f"Changing tool...")
         self.tt_targetTool.value = targetTool
         step = directionStep(self.tt_currentTool.value, self.tt_targetTool.value, self.tt_totalStations.value)
@@ -161,6 +163,7 @@ reactor EMCO_Mill_105 extends FrostMachine{
                 next_tool = 1
             self.tt_currentTool.value = next_tool
         self.logger.info(f"Tool changed.")
+
         self.tt_busy.value = False
         return True
     =}
@@ -171,35 +174,27 @@ reactor EMCO_Mill_105 extends FrostMachine{
     state dcm_targetRPM
     state dcm_m_changeSpeed
     method changeSpeed_dcm(targetSpeed) {=
-        self.logger.info(f"Changing speed...")
-
-        self.dcm_targetRPM.value = int(targetSpeed)
-
-        current = int(self.dcm_currentRPM.value)
-        target = int(self.dcm_targetRPM.value)
-
-        if current == target:
-            self.logger.info("Speed already reached.")
-            return True
-
-        step = 1 if target > current else -1
+        if self.dcm_busy.value:
+            return False
 
         self.dcm_busy.value = True
 
-        while current != target:
-            current += step
-
-            if step > 0 and current > target:
-                current = target
-            elif step < 0 and current < target:
-                current = target
-
-            self.dcm_currentRPM.value = current
-
-        self.dcm_busy.value = False
-
+        self.dcm_targetRPM.value = int(targetSpeed)
+        self.logger.info(f"Changing speed...")
+        if self.dcm_currentRPM.value == self.dcm_targetRPM.value:
+            self.logger.info("Speed already reached.")
+            return True
+        step = 1 if self.dcm_targetRPM.value > self.dcm_currentRPM.value else -1
+        while self.dcm_currentRPM.value != self.dcm_targetRPM.value:
+            self.dcm_currentRPM.value += step
+            if step > 0 and self.dcm_currentRPM.value > self.dcm_targetRPM.value:
+                self.dcm_currentRPM.value = self.dcm_targetRPM.value
+            elif step < 0 and self.dcm_currentRPM.value < self.dcm_targetRPM.value:
+                self.dcm_currentRPM.value = self.dcm_targetRPM.value
+            self.dcm_currentRPM.value = self.dcm_currentRPM.value
         self.logger.info("Speed changed.")
 
+        self.dcm_busy.value = False
         return True
     =}
 
@@ -213,14 +208,6 @@ reactor EMCO_Mill_105 extends FrostMachine{
     state axes_ZtargetPos
     state axes_m_moveTo
     method moveTo_axes(x, y, z) {=
-        self.logger.info(f"Moving to ({x};{y};{z}) ...")
-
-        self.axes_busy.value = True
-
-        self.axes_XtargetPos.value = int(x)
-        self.axes_YtargetPos.value = int(y)
-        self.axes_ZtargetPos.value = int(z)
-
         def move_axis(current_node, target_node, axis_name):
             current = int(current_node.value)
             target = int(target_node.value)
@@ -230,17 +217,20 @@ reactor EMCO_Mill_105 extends FrostMachine{
                 return
 
             step = 1 if target > current else -1
-
             while current != target:
                 current += step
-
                 if step > 0 and current > target:
                     current = target
                 elif step < 0 and current < target:
                     current = target
-
                 current_node.value = current
 
+        self.axes_busy.value = True
+
+        self.logger.info(f"Moving to ({x};{y};{z}) ...")
+        self.axes_XtargetPos.value = int(x)
+        self.axes_YtargetPos.value = int(y)
+        self.axes_ZtargetPos.value = int(z)
         # X moving
         move_axis(
             self.axes_XcurrentPos,
@@ -259,8 +249,8 @@ reactor EMCO_Mill_105 extends FrostMachine{
             self.axes_YtargetPos,
             "Y"
         )
-
         self.logger.info("Position reached.")
+
         self.axes_busy.value = False
         return True
     =}
@@ -274,9 +264,7 @@ reactor EMCO_Mill_105 extends FrostMachine{
             self.dcm_busy.value or 
             self.axes_busy.value
         )
-        
         self.mill_busy.value = is_moving_or_working
-        
         if not is_moving_or_working:
             to_idle.schedule(SECS(0))
     =}
